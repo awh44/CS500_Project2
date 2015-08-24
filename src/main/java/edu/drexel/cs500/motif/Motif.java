@@ -108,7 +108,7 @@ public final class Motif {
 		DataFrame pref = Motif.initPref(inFileName);
 
 		// your code goes here, setting these DataFrames to null as a placeholder
-		DataFrame lMotifs = generateCommonLMotifs(); //null;
+		DataFrame lMotifs = null;
 		DataFrame vMotifs = null;
 		DataFrame aMotifs = null;
 
