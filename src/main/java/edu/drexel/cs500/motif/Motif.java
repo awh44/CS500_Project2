@@ -107,6 +107,20 @@ public final class Motif {
 		
 		DataFrame pref = Motif.initPref(inFileName);
 
+		DataFrame allPreferences = pref.as("allPreferences").distinct();
+		DataFrame currentPreferences = pref.as("currentPreferences"().distinct());
+		do
+		{
+			//Extend the previously generated set of preferences to 
+			DataFrame newPreferences = currentPreferences.join(pref, pref.col("tid").equalTo(currentPreferences.col("tid")))
+			                                             .where(pref.col("item2").equalTo(currentPreferences.col("item1")));
+			allPreferences = allPreferences.unionAll(tmpPreferences);
+			currentPreferences = newPreferences;
+		} while (currentPreferences.count() != 0);
+
+		allPreferences.show();
+
+		/*
 		// your code goes here, setting these DataFrames to null as a placeholder
 		DataFrame lMotifs = null;
 		DataFrame vMotifs = null;
@@ -129,7 +143,7 @@ public final class Motif {
 		} catch (IOException ioe) {
 			System.out.println("Cound not output A-Motifs " + ioe.toString());
 		}
-		
+		*/
 		System.out.println("Done");
 		sparkContext.stop();
 	        
