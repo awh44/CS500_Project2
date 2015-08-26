@@ -105,17 +105,29 @@ public final class Motif {
 		Motif.init(master, numReducers);
 		Logger.getRootLogger().setLevel(Level.OFF);
 		
-		DataFrame pref = Motif.initPref(inFileName);
+		DataFrame pref = Motif.initPref(inFileName).as("pref");
+		pref.show();
 
-		DataFrame allPreferences = pref.as("allPreferences").distinct();
-		DataFrame currentPreferences = pref.as("currentPreferences"().distinct());
+
+		DataFrame allPreferences = pref.as("allPreferences");
+		DataFrame currentPreferences = pref.toDF("ctid", "citem1", "citem2");
+		currentPreferences.show();
 		do
 		{
 			//Extend the previously generated set of preferences to 
-			DataFrame newPreferences = currentPreferences.join(pref, pref.col("tid").equalTo(currentPreferences.col("tid")))
-			                                             .where(pref.col("item2").equalTo(currentPreferences.col("item1")));
-			allPreferences = allPreferences.unionAll(tmpPreferences);
-			currentPreferences = newPreferences;
+			DataFrame newPreferences = currentPreferences.join(pref, currentPreferences.col("ctid").equalTo(pref.col("tid")));
+			newPreferences.show();
+
+			newPreferences = newPreferences.where(newPreferences.col("citem2").equalTo(newPreferences.col("item1")));
+			newPreferences.show();
+
+			newPreferences = newPreferences.select("ctid", "citem1", "item2");
+			newPreferences.show();
+
+			allPreferences = allPreferences.unionAll(newPreferences);
+			allPreferences.show();
+
+			currentPreferences = newPreferences.toDF("ctid", "citem1", "citem2");
 		} while (currentPreferences.count() != 0);
 
 		allPreferences.show();
