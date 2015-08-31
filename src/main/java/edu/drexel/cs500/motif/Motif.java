@@ -97,8 +97,8 @@ public final class Motif {
 		DataFrame currentPreferences = pref.toDF("ctid", "citem1", "citem2");
 		do
 		{
-			//Extend the previously generated set of preferences by one. In other words, if on the previous interation
-			//the path lengths between all the pairs of had length n, generate all of the preferences where the path length
+			//Extend the previously generated set of preferences by one. In other words, if on the previous iteration
+			//the path lengths between all the pairs had length n, generate all of the preferences where the path length
 			//is n + 1
 			DataFrame newPreferences = currentPreferences.join(pref, currentPreferences.col("ctid").equalTo(pref.col("tid")))
 			                                             .where(currentPreferences.col("citem2").equalTo(pref.col("item1")))
@@ -114,18 +114,39 @@ public final class Motif {
 		return allPreferences;
 	}
 
+	private static DataFrame generateFrequentLMotifs(DataFrame allPreferences1, DataFrame allPreferences2, long numTransactions, double thresh)
+	{
+		DataFrame allLMotifs = allPreferences1.join(allPreferences2, allPreferences1.col("a1tid").equalTo(allPreferences2.col("a2tid")))
+		                                      .where(allPreferences1.col("a1item2").equalTo(allPreferences2.col("a2item1")))
+		                                      .where(allPreferences1.col("a1item1").lt(allPreferences2.col("a2item2")))
+		                                      .groupBy("a1item1", "a1item2", "a2item1", "a2item2")
+		                                      .count()
+		                                      .select("a1item1", "a1item2", "a2item2", "count");
+		return allLMotifs.where(allLMotifs.col("count").divide(numTransactions).geq(thresh));
+	}
+
 	private static DataFrame generateFrequentVMotifs(DataFrame allPreferences1, DataFrame allPreferences2, long numTransactions, double thresh)
 	{
 		DataFrame allVMotifs = allPreferences1.join(allPreferences2, allPreferences1.col("a1tid").equalTo(allPreferences2.col("a2tid")))
-		                                   .where(allPreferences1.col("a1item2").equalTo(allPreferences2.col("a2item2")))
-		                                   .where(allPreferences1.col("a1item1").lt(allPreferences2.col("a2item1")))
-		                                   .distinct()
-		                                   .groupBy("a1item1", "a1item2", "a2item1", "a2item2")
-		                                   .count()
-		                                   .select("a1item1", "a1item2", "a2item1", "count");
+		                                      .where(allPreferences1.col("a1item2").equalTo(allPreferences2.col("a2item2")))
+		                                      .where(allPreferences1.col("a1item1").lt(allPreferences2.col("a2item1")))
+		                                      .groupBy("a1item1", "a1item2", "a2item1", "a2item2")
+		                                      .count()
+		                                      .select("a1item1", "a1item2", "a2item1", "count");
 		return allVMotifs.where(allVMotifs.col("count").divide(numTransactions).geq(thresh));
 	}
-    
+
+	private static DataFrame generateFrequentAMotifs(DataFrame allPreferences1, DataFrame allPreferences2, long numTransactions, double thresh)
+	{
+		DataFrame allAMotifs = allPreferences1.join(allPreferences2, allPreferences1.col("a1tid").equalTo(allPreferences2.col("a2tid")))
+		                                      .where(allPreferences1.col("a1item1").equalTo(allPreferences2.col("a2item1")))
+		                                      .where(allPreferences1.col("a1item2").lt(allPreferences2.col("a2item2")))
+		                                      .groupBy("a1item1", "a1item2", "a2item1", "a2item2")
+		                                      .count()
+		                                      .select("a1item2", "a2item1", "a2item2", "count");
+		return allAMotifs.where(allAMotifs.col("count").divide(numTransactions).geq(thresh));
+	}
+
     public static void main(String[] args) throws Exception {
 		if (args.length != 5) {
 			System.err.println("Usage: Motif <inFile> <support> <outDir> <master> <numReducers>");
@@ -149,34 +170,29 @@ public final class Motif {
 		DataFrame allPreferences2 = allPreferences.toDF("a2tid", "a2item1", "a2item2");
 		
 		long numTransactions = pref.select("tid").distinct().count();
-/*
-		DataFrame lMotifs = allPreferences.join(allPreferences2, allPreferences.col("atid").equalTo(allPreferences2.col("a2tid")))
-		                                  .where(allPreferences.col("aitem2").equalTo(allPreferences.col("a2item1")));
-*/
+
+		DataFrame lMotifs = generateFrequentLMotifs(allPreferences1, allPreferences2, numTransactions, thresh);
 		DataFrame vMotifs = generateFrequentVMotifs(allPreferences1, allPreferences2, numTransactions, thresh);
-/*
-		DataFrame aMotifs = null;
-*/
-/*
+		DataFrame aMotifs = generateFrequentAMotifs(allPreferences1, allPreferences2, numTransactions, thresh);
+
 		try {
 			Motif.saveOutput(lMotifs, outDirName + "/" + thresh, "L");
 		} catch (IOException ioe) {
-			System.out.println("Cound not output L-Motifs " + ioe.toString());
+			System.out.println("Could not output L-Motifs " + ioe.toString());
 		}
-*/
 		
 		try {
 			Motif.saveOutput(vMotifs, outDirName + "/" + thresh, "V");
 		} catch (IOException ioe) {
-			System.out.println("Cound not output V-Motifs " + ioe.toString());
+			System.out.println("Could not output V-Motifs " + ioe.toString());
 		}
-/*
+
 		try {
 			Motif.saveOutput(aMotifs, outDirName + "/" + thresh, "A");
 		} catch (IOException ioe) {
-			System.out.println("Cound not output A-Motifs " + ioe.toString());
+			System.out.println("Could not output A-Motifs " + ioe.toString());
 		}
-*/
+
 		System.out.println("Done");
 		sparkContext.stop();
 	        
